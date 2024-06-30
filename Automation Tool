@@ -1,0 +1,174 @@
+import socket
+from scapy.all import ARP, Ether, srp
+import nmap
+import re
+import smtplib
+from email.mime.text import MIMEText
+import os
+import hashlib
+import platform
+import psutil
+
+def scan_network(ip_range):
+    """
+    Scan the network for active devices using ARP requests.
+    """
+    print(f"Scanning network for IP range: {ip_range}")
+    
+    # Create an ARP request packet
+    arp = ARP(pdst=ip_range)
+    ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+    packet = ether/arp
+
+    # Send the packet and receive responses
+    result = srp(packet, timeout=2, verbose=0)[0]
+
+    # Parse the results
+    devices = []
+    for sent, received in result:
+        devices.append({'ip': received.psrc, 'mac': received.hwsrc})
+
+    return devices
+
+def check_open_port(ip, port):
+    """
+    Check if a specific port is open on a given IP address.
+    """
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(1)  # Timeout for the connection attempt
+    result = sock.connect_ex((ip, port))
+    sock.close()
+    return result == 0
+
+def vulnerability_scan(ip):
+    """
+    Perform a vulnerability scan on the given IP address using nmap.
+    """
+    nm = nmap.PortScanner()
+    nm.scan(ip, arguments='--script vuln')
+    return nm[ip]
+
+def analyze_logs(log_file):
+    """
+    Analyze log files for suspicious activities.
+    """
+    suspicious_patterns = [
+        re.compile(r'Failed password for'),
+        re.compile(r'error'),
+        re.compile(r'warning')
+    ]
+    
+    with open(log_file, 'r') as file:
+        logs = file.readlines()
+    
+    suspicious_logs = []
+    for line in logs:
+        for pattern in suspicious_patterns:
+            if pattern.search(line):
+                suspicious_logs.append(line)
+    
+    return suspicious_logs
+
+def send_email_alert(subject, body, to_email):
+    """
+    Send an email alert.
+    """
+    from_email = "your_email@example.com"
+    password = "your_password"
+
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = from_email
+    msg['To'] = to_email
+
+    with smtplib.SMTP_SSL('smtp.example.com', 465) as server:
+        server.login(from_email, password)
+        server.sendmail(from_email, to_email, msg.as_string())
+
+def monitor_file_integrity(file_path):
+    """
+    Monitor the integrity of a file by checking its hash.
+    """
+    if not os.path.exists(file_path):
+        return None
+
+    with open(file_path, 'rb') as file:
+        file_data = file.read()
+        return hashlib.sha256(file_data).hexdigest()
+
+def gather_system_info():
+    """
+    Gather basic system information.
+    """
+    system_info = {
+        'hostname': socket.gethostname(),
+        'ip_address': socket.gethostbyname(socket.gethostname()),
+        'os': platform.system(),
+        'os_version': platform.version(),
+        'architecture': platform.machine(),
+        'cpu_count': psutil.cpu_count(),
+        'memory': psutil.virtual_memory().total
+    }
+    return system_info
+
+def main():
+    # Define the IP range for network scanning
+    ip_range = "192.168.1.0/24"
+    
+    # Scan the network
+    devices = scan_network(ip_range)
+    print("Active devices found:")
+    for device in devices:
+        print(f"IP: {device['ip']}, MAC: {device['mac']}")
+
+    # Check open ports on each device
+    ports_to_check = [22, 80, 443]  # Example ports: SSH, HTTP, HTTPS
+    for device in devices:
+        ip = device['ip']
+        print(f"\nChecking open ports on {ip}:")
+        for port in ports_to_check:
+            if check_open_port(ip, port):
+                print(f"Port {port} is open")
+            else:
+                print(f"Port {port} is closed")
+
+        # Perform vulnerability scan
+        print(f"\nPerforming vulnerability scan on {ip}:")
+        scan_result = vulnerability_scan(ip)
+        for proto in scan_result.all_protocols():
+            lport = scan_result[proto].keys()
+            for port in lport:
+                print(f"Port: {port}\tState: {scan_result[proto][port]['state']}")
+                if 'script' in scan_result[proto][port]:
+                    for script in scan_result[proto][port]['script']:
+                        print(f"Script: {script}\tOutput: {scan_result[proto][port]['script'][script]}")
+
+    # Analyze logs
+    log_file = '/var/log/auth.log'  # Example log file
+    print(f"\nAnalyzing log file: {log_file}")
+    suspicious_logs = analyze_logs(log_file)
+    if suspicious_logs:
+        print("Suspicious activities found in logs:")
+        for log in suspicious_logs:
+            print(log)
+        # Send email alert
+        send_email_alert("Suspicious Activity Detected", "\n".join(suspicious_logs), "admin@example.com")
+    else:
+        print("No suspicious activities found in logs.")
+
+    # Monitor file integrity
+    file_to_monitor = '/etc/passwd'  # Example file
+    file_hash = monitor_file_integrity(file_to_monitor)
+    if file_hash:
+        print(f"File integrity hash for {file_to_monitor}: {file_hash}")
+    else:
+        print(f"File {file_to_monitor} does not exist.")
+
+    # Gather system information
+    system_info = gather_system_info()
+    print("\nSystem Information:")
+    for key, value in system_info.items():
+        print(f"{key}: {value}")
+
+if __name__ == "__main__":
+    main()
