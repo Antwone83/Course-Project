@@ -1,0 +1,166 @@
+Project Plan and Scope 
+# Objectives The primary objectives of this project are:
+1. To develop a Python tool that automates essential security functions.
+2. To improve the efficiency and accuracy of security operations.
+3. To provide a scalable and adaptable solution for various organizational needs.
+
+# Scope The tool will include the following functionalities:
+
+1. Network Scanning:  
+Identify active devices on a network.
+
+2. Open Port Detection:  
+Check for open ports on identified devices.
+
+3. Vulnerability Scanning:  
+Perform vulnerability assessments using nmap.
+
+4. Log Analysis:  
+Analyze log files for suspicious activities.
+
+5. Email Alerts:  
+Send email notifications for detected security incidents.
+
+6. File Integrity Monitoring:  
+Monitor critical files for unauthorized changes.
+
+7. System Information Gathering:  
+Collect and display system information.
+
+ Problem Statement Cybersecurity threats are evolving at an unprecedented pace, making it challenging for organizations to keep up with the necessary security measures. Manual security operations are labor-intensive and susceptible to errors, leading to potential security breaches. The proposed Python tool aims to address these challenges by automating key security functions, thereby enhancing the overall security posture and reducing the risk of human error.
+
+ Implementation 
+# Network Scanning The tool utilizes the ARP (Address Resolution Protocol) to scan the network for active devices. This is achieved by sending ARP requests and processing the responses to identify devices and their associated IP and MAC addresses.
+ 
+from scapy.all import ARP, Ether, srp
+def scan_network(ip_range):
+    arp = ARP(pdst=ip_range)
+    ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+    packet = ether/arp
+    result = srp(packet, timeout=2, verbose=0)[0]
+    devices = []
+    for sent, received in result:
+        devices.append({'ip': received.psrc, 'mac': received.hwsrc})
+    return devices
+```
+
+# Open Port Detection The tool checks for open ports on identified devices using socket programming. This helps in identifying potential entry points for unauthorized access.
+ 
+import socket
+def check_open_port(ip, port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(1)
+    result = sock.connect_ex((ip, port))
+    sock.close()
+    return result == 0
+```
+
+# Vulnerability Scanning Nmap is employed to perform vulnerability scans on the identified devices. This helps in detecting known vulnerabilities that could be exploited by attackers.
+ 
+import nmap
+def vulnerability_scan(ip):
+    nm = nmap.PortScanner()
+    nm.scan(ip, arguments='--script vuln')
+    return nm[ip]
+```
+
+# Log Analysis The tool analyzes log files to detect suspicious activities. It searches for specific patterns indicative of security incidents, such as failed login attempts or error messages.
+ 
+import re
+def analyze_logs(log_file):
+    suspicious_patterns = [
+        re.compile(r'Failed password for'),
+        re.compile(r'error'),
+        re.compile(r'warning')
+    ]
+    
+    with open(log_file, 'r') as file:
+        logs = file.readlines()
+    
+    suspicious_logs = []
+    for line in logs:
+        for pattern in suspicious_patterns:
+            if pattern.search(line):
+                suspicious_logs.append(line)
+    
+    return suspicious_logs
+```
+
+# Email Alerts The tool sends email notifications for detected security incidents. This ensures that the security team is promptly informed of potential threats.
+ 
+import smtplib
+from email.mime.text import MIMEText
+def send_email_alert(subject, body, to_email):
+    from_email = "your_email@example.com"
+    password = "your_password"
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = from_email
+    msg['To'] = to_email
+    with smtplib.SMTP_SSL('smtp.example.com', 465) as server:
+        server.login(from_email, password)
+        server.sendmail(from_email, to_email, msg.as_string())
+```
+
+# File Integrity Monitoring The tool monitors the integrity of critical files by calculating and comparing their hash values. This helps in detecting unauthorized changes to important files.
+ 
+import os
+import hashlib
+def monitor_file_integrity(file_path):
+    if not os.path.exists(file_path):
+        return None
+    with open(file_path, 'rb') as file:
+        file_data = file.read()
+        return hashlib.sha256(file_data).hexdigest()
+```
+
+# System Information Gathering The tool collects and displays basic system information, providing insights into the system's configuration and status.
+
+import platform
+import psutil
+def gather_system_info():
+    system_info = {
+        'hostname': socket.gethostname(),
+        'ip_address': socket.gethostbyname(socket.gethostname()),
+        'os': platform.system(),
+        'os_version': platform.version(),
+        'architecture': platform.machine(),
+        'cpu_count': psutil.cpu_count(),
+        'memory': psutil.virtual_memory().total
+    }
+    return system_info
+```
+
+ Discussion 
+ The proposed tool addresses the challenges of manual security operations by automating critical functions. By leveraging Python and various libraries, the tool enhances the efficiency and accuracy of security tasks. The automation of network scanning, open port detection, vulnerability assessment, log analysis, email alerts, file integrity monitoring, and system information gathering provides a comprehensive solution for improving organizational cybersecurity posture.
+
+# Advantages 
+1. Efficiency:  
+Automates repetitive and time-consuming security tasks.
+
+2. Accuracy:  
+Reduces the risk of human error in security operations.
+
+3. Scalability:  
+Can be adapted to different organizational needs and environments.
+
+4. Proactivity:  
+Enables timely detection and response to security incidents.
+
+# Limitations 
+1. Dependency on External Libraries:  
+Relies on third-party libraries such as scapy and nmap.
+
+2. Configuration Requirements:  
+Requires proper configuration and customization for different environments.
+
+3. Resource Intensive:  
+May consume significant system resources during operation.
+
+References 
+[Python Documentation](https://docs.python.org/3/)
+[Scapy Documentation](https://scapy.readthedocs.io/en/latest/)
+[Nmap Documentation](https://nmap.org/book/man.html)
+[PSUtil Documentation](https://psutil.readthedocs.io/en/latest/)
+[Hashlib Documentation](https://docs.python.org/3/library/hashlib.html)
+[SMTP Library Documentation](https://docs.python.org/3/library/smtplib.html)
